@@ -192,18 +192,31 @@ def analyze_symptoms(symptoms, raw_text=""):
         keywords = info.get('keywords', [])
         for keyword in keywords:
             if keyword.lower() in raw_text_lower:
-                # Check for negation (e.g., "no infection", "not swollen")
-                start_index = raw_text_lower.find(keyword.lower())
-                # Look at the 20 chars before the match
-                context_before = raw_text_lower[max(0, start_index - 20):start_index]
+                # Use regex to find the keyword and check for preceding negation
+                # This handles word boundaries and variable spacing
+                import re
                 
-                negations = ['no ', 'not ', 'without ', 'negative ', 'denies ']
-                is_negated = any(neg in context_before for neg in negations)
+                # Find all start indices of the keyword
+                keyword_starts = [m.start() for m in re.finditer(re.escape(keyword.lower()), raw_text_lower)]
+                
+                is_negated = False
+                for start in keyword_starts:
+                    # Look at context before this specific occurrence (up to 25 chars)
+                    context_before = raw_text_lower[max(0, start - 25):start]
+                    
+                    # Check for negation patterns with word boundaries
+                    negation_pattern = r'\b(no|not|without|negative|denies|free of)\b[:\s]*$'
+                    
+                    if re.search(negation_pattern, context_before):
+                        is_negated = True
+                        print(f"   ⛔ Negation detected for '{keyword}': '{context_before}'")
+                        break
                 
                 if not is_negated:
                     score += 2  # Keywords in raw text are more important
                     if keyword not in matched_keywords:
                         matched_keywords.append(keyword)
+                    print(f"   ✨ Matched keyword: '{keyword}' in {category}")
         
         if score > 0:
             # Calculate how many diseases to show based on score
