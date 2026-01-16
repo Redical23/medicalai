@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = 'http://localhost:5000';
+// Use environment variable in production, localhost in development
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 
 export async function POST(request) {
     try {

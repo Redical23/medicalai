@@ -1,0 +1,28 @@
+services:
+  # Python ML Backend
+  - type: web
+    name: medivue-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    rootDir: backend
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: 5000
+
+  # Next.js Frontend
+  - type: web
+    name: medivue-frontend
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: medivue-backend
+          type: web
+          property: host
