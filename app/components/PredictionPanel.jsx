@@ -239,18 +239,60 @@ export default function PredictionPanel() {
                                 <div style={styles.sectionTitle}>Detected Categories</div>
                                 {Object.entries(prediction.category_analysis).map(([cat, data]) => (
                                     <div key={cat} style={styles.categoryCard}>
-                                        <div style={styles.categoryName}>
-                                            {cat === 'respiratory' ? '🫁' :
-                                                cat === 'cardiac' ? '❤️' :
-                                                    cat === 'neurological' ? '🧠' :
-                                                        cat === 'gastrointestinal' ? '🍽️' :
-                                                            cat === 'dermatological' ? '🎨' : '🧘'} {cat}
+                                        <div style={{
+                                            ...styles.categoryName,
+                                            display: 'flex',
+                                            justifyContent: 'space-between'
+                                        }}>
+                                            <span>
+                                                {cat === 'respiratory' ? '🫁' :
+                                                    cat === 'cardiac' ? '❤️' :
+                                                        cat === 'neurological' ? '🧠' :
+                                                            cat === 'gastrointestinal' ? '🍽️' :
+                                                                cat === 'dermatological' ? '🎨' :
+                                                                    cat === 'oncology' ? '🎗️' :
+                                                                        cat === 'thyroid' ? '🦋' :
+                                                                            cat === 'infectious' ? '🦠' :
+                                                                                cat === 'lymphatic' ? '🛡️' : '🧘'} {cat}
+                                            </span>
+                                            {data.urgency && (
+                                                <span style={{
+                                                    fontSize: '10px',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    background: data.urgency === 'high' ? '#fee2e2' : '#fef3c7',
+                                                    color: data.urgency === 'high' ? '#dc2626' : '#d97706',
+                                                }}>
+                                                    {data.urgency.toUpperCase()}
+                                                </span>
+                                            )}
                                         </div>
+
+                                        {/* Matched Keywords/Symptoms */}
+                                        <div style={{ marginBottom: '8px', fontSize: '11px', color: '#6b7280' }}>
+                                            Found: {[...(data.matched_keywords || []), ...(data.matched_symptoms || [])].join(', ')}
+                                        </div>
+
                                         <div>
                                             {data.possible_diseases.map((d, i) => (
                                                 <span key={i} style={styles.diseaseTag}>{d}</span>
                                             ))}
                                         </div>
+
+                                        {/* Specific Recommendation */}
+                                        {data.recommendation && (
+                                            <div style={{
+                                                marginTop: '8px',
+                                                fontSize: '11px',
+                                                color: '#4b5563',
+                                                background: '#fff',
+                                                padding: '6px',
+                                                borderRadius: '4px',
+                                                border: '1px solid #e5e7eb'
+                                            }}>
+                                                💡 {data.recommendation}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

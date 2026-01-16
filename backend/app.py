@@ -24,37 +24,79 @@ CORS(app)  # Enable CORS for frontend
 models = {}
 scaler = StandardScaler()
 
-# Disease categories based on symptoms and metrics
+# Expanded disease categories with specific symptom patterns
 DISEASE_CATEGORIES = {
+    'oncology': {
+        'symptoms': ['lump', 'mass', 'growth', 'tumor', 'swelling', 'painless_lump', 'weight_loss', 'night_sweats'],
+        'keywords': ['lump', 'mass', 'growth', 'tumor', 'growing', 'painless', 'hard', 'slowly growing', 'lymph', 'node'],
+        'metrics': [],
+        'diseases': ['Lymphoma', 'Thyroid Cancer', 'Hodgkin Disease', 'Non-Hodgkin Lymphoma', 'Metastatic Cancer'],
+        'urgency': 'high',
+        'recommendation': 'Please consult an oncologist or ENT specialist for proper evaluation. A biopsy may be needed.'
+    },
+    'thyroid': {
+        'symptoms': ['neck_lump', 'swelling', 'fatigue', 'weight_change', 'difficulty_swallowing'],
+        'keywords': ['neck', 'throat', 'thyroid', 'swallowing', 'goiter', 'lump in neck'],
+        'metrics': [],
+        'diseases': ['Thyroid Nodule', 'Goiter', 'Thyroiditis', 'Hyperthyroidism', 'Hypothyroidism', 'Thyroid Cancer'],
+        'urgency': 'moderate',
+        'recommendation': 'Thyroid function tests (TSH, T3, T4) and ultrasound recommended.'
+    },
+    'lymphatic': {
+        'symptoms': ['swollen_lymph_nodes', 'night_sweats', 'fatigue', 'fever'],
+        'keywords': ['lymph', 'node', 'swollen', 'gland', 'armpit', 'groin', 'neck swelling'],
+        'metrics': [],
+        'diseases': ['Lymphadenopathy', 'Lymphoma', 'Mononucleosis', 'HIV/AIDS', 'Tuberculosis'],
+        'urgency': 'high',
+        'recommendation': 'Complete blood count and lymph node biopsy may be needed.'
+    },
+    'infectious': {
+        'symptoms': ['fever', 'infection', 'swelling', 'pain'],
+        'keywords': ['infection', 'fever', 'pus', 'red', 'warm', 'tender'],
+        'metrics': [],
+        'diseases': ['Bacterial Infection', 'Viral Infection', 'Abscess', 'Cellulitis'],
+        'urgency': 'moderate',
+        'recommendation': 'May require antibiotics. Consult a doctor if symptoms persist.'
+    },
     'respiratory': {
-        'symptoms': ['cough', 'breathing_difficulty', 'sore_throat'],
+        'symptoms': ['cough', 'breathing_difficulty', 'sore_throat', 'shortness_of_breath'],
+        'keywords': ['cough', 'breath', 'wheeze', 'chest', 'lung', 'respiratory'],
         'metrics': ['breathing_rate', 'spo2'],
-        'diseases': ['Common Cold', 'Flu', 'Asthma', 'Bronchitis', 'COVID-19']
+        'diseases': ['Common Cold', 'Flu', 'Asthma', 'Bronchitis', 'Pneumonia', 'COVID-19'],
+        'urgency': 'moderate',
+        'recommendation': 'Monitor oxygen levels. Seek care if breathing worsens.'
     },
     'cardiac': {
-        'symptoms': ['chest_pain', 'fatigue', 'dizziness'],
+        'symptoms': ['chest_pain', 'palpitations', 'shortness_of_breath'],
+        'keywords': ['heart', 'chest pain', 'palpitation', 'irregular', 'racing'],
         'metrics': ['heart_rate', 'hrv'],
-        'diseases': ['Hypertension', 'Arrhythmia', 'Heart Disease']
+        'diseases': ['Hypertension', 'Arrhythmia', 'Heart Disease', 'Angina'],
+        'urgency': 'high',
+        'recommendation': 'ECG and cardiac evaluation recommended.'
     },
     'neurological': {
-        'symptoms': ['headache', 'dizziness', 'fatigue'],
-        'metrics': ['facial_symmetry', 'head_tremor', 'fatigue_perclos'],
-        'diseases': ['Migraine', 'Stroke Risk', 'Parkinson Risk', 'Fatigue Syndrome']
+        'symptoms': ['headache', 'dizziness', 'numbness', 'weakness'],
+        'keywords': ['headache', 'dizzy', 'numb', 'weak', 'tremor', 'seizure', 'vision'],
+        'metrics': ['facial_symmetry', 'head_tremor'],
+        'diseases': ['Migraine', 'Tension Headache', 'Stroke Risk', 'Neuropathy'],
+        'urgency': 'moderate',
+        'recommendation': 'Neurological examination recommended if symptoms persist.'
     },
     'gastrointestinal': {
-        'symptoms': ['nausea', 'vomiting', 'abdominal_pain'],
+        'symptoms': ['nausea', 'vomiting', 'abdominal_pain', 'diarrhea'],
+        'keywords': ['stomach', 'nausea', 'vomit', 'diarrhea', 'constipation', 'abdomen'],
         'metrics': [],
-        'diseases': ['Gastritis', 'Food Poisoning', 'IBS']
+        'diseases': ['Gastritis', 'GERD', 'IBS', 'Food Poisoning', 'Appendicitis'],
+        'urgency': 'moderate',
+        'recommendation': 'Stay hydrated. Seek care if severe pain or blood present.'
     },
     'dermatological': {
-        'symptoms': ['rash', 'skin_discoloration', 'swelling'],
+        'symptoms': ['rash', 'skin_discoloration', 'itching', 'lesion'],
+        'keywords': ['rash', 'skin', 'itch', 'red', 'spot', 'lesion', 'mole'],
         'metrics': ['skin_status'],
-        'diseases': ['Allergic Reaction', 'Eczema', 'Dermatitis', 'Jaundice']
-    },
-    'mental_health': {
-        'symptoms': ['fatigue', 'headache'],
-        'metrics': ['distress_score', 'primary_emotion', 'fatigue_perclos'],
-        'diseases': ['Stress', 'Anxiety', 'Depression', 'Burnout']
+        'diseases': ['Allergic Reaction', 'Eczema', 'Psoriasis', 'Skin Infection', 'Skin Cancer'],
+        'urgency': 'low',
+        'recommendation': 'Dermatologist consultation for persistent skin changes.'
     }
 }
 
@@ -121,27 +163,58 @@ def prepare_features(data):
     return np.array(features).reshape(1, -1)
 
 
-def analyze_symptoms(symptoms):
-    """Determine disease categories based on symptoms"""
+def analyze_symptoms(symptoms, raw_text=""):
+    """Determine disease categories based on symptoms and raw text analysis"""
     physical = symptoms.get('physical', {})
     internal = symptoms.get('internal', {})
     all_symptoms = {**physical, **internal}
+    
+    # Get raw text from symptoms
+    if not raw_text:
+        raw_text = symptoms.get('raw_text', '')
+    
+    raw_text_lower = raw_text.lower()
     
     category_scores = {}
     
     for category, info in DISEASE_CATEGORIES.items():
         score = 0
-        matched = []
+        matched_keywords = []
+        matched_symptoms = []
+        
+        # Check structured symptoms
         for symptom in info['symptoms']:
             if all_symptoms.get(symptom):
                 score += 1
-                matched.append(symptom)
+                matched_symptoms.append(symptom)
+        
+        # Check keywords in raw text (NLP-like matching)
+        keywords = info.get('keywords', [])
+        for keyword in keywords:
+            if keyword.lower() in raw_text_lower:
+                score += 2  # Keywords in raw text are more important
+                if keyword not in matched_keywords:
+                    matched_keywords.append(keyword)
+        
         if score > 0:
+            # Calculate how many diseases to show based on score
+            num_diseases = min(score + 1, len(info['diseases']))
+            
             category_scores[category] = {
                 'score': score,
-                'matched_symptoms': matched,
-                'possible_diseases': info['diseases'][:min(score + 1, len(info['diseases']))]
+                'matched_symptoms': matched_symptoms,
+                'matched_keywords': matched_keywords,
+                'possible_diseases': info['diseases'][:num_diseases],
+                'urgency': info.get('urgency', 'moderate'),
+                'recommendation': info.get('recommendation', 'Consult a healthcare provider.')
             }
+    
+    # Sort by score (highest first)
+    category_scores = dict(sorted(
+        category_scores.items(), 
+        key=lambda x: x[1]['score'], 
+        reverse=True
+    ))
     
     return category_scores
 
@@ -209,9 +282,11 @@ def predict():
         avg_probability = float(np.mean(probabilities))
         print(f"📊 Ensemble probability: {avg_probability:.3f}")
         
-        # Analyze symptoms
+        # Analyze symptoms with NLP on raw text
         symptoms = data.get('symptoms', {})
-        category_analysis = analyze_symptoms(symptoms)
+        raw_text = symptoms.get('raw_text', '')
+        print(f"📝 Raw text: {raw_text[:100] if raw_text else 'None'}...")
+        category_analysis = analyze_symptoms(symptoms, raw_text)
         
         # Get risk level
         risk = get_risk_level(avg_probability)
