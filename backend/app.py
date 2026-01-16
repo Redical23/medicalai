@@ -188,13 +188,22 @@ def analyze_symptoms(symptoms, raw_text=""):
                 score += 1
                 matched_symptoms.append(symptom)
         
-        # Check keywords in raw text (NLP-like matching)
+        # Check keywords in raw text (NLP-like matching with negation handling)
         keywords = info.get('keywords', [])
         for keyword in keywords:
             if keyword.lower() in raw_text_lower:
-                score += 2  # Keywords in raw text are more important
-                if keyword not in matched_keywords:
-                    matched_keywords.append(keyword)
+                # Check for negation (e.g., "no infection", "not swollen")
+                start_index = raw_text_lower.find(keyword.lower())
+                # Look at the 20 chars before the match
+                context_before = raw_text_lower[max(0, start_index - 20):start_index]
+                
+                negations = ['no ', 'not ', 'without ', 'negative ', 'denies ']
+                is_negated = any(neg in context_before for neg in negations)
+                
+                if not is_negated:
+                    score += 2  # Keywords in raw text are more important
+                    if keyword not in matched_keywords:
+                        matched_keywords.append(keyword)
         
         if score > 0:
             # Calculate how many diseases to show based on score
